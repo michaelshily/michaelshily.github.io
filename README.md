@@ -1,3 +1,3 @@
 # michaelshily.github.io
 
-Now just use for testing 
+Just use for testing 
