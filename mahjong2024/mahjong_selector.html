@@ -12,6 +12,18 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
         /* Add your CSS styling here */
+        // Set the image width to 1/10 of the screen width
+        $image-width: 10vw;
+        
+        // Define a mixin for responsive image resizing
+        @mixin responsive-image {
+          width: $image-width;
+        
+          @media (max-width: 768px) {
+            // Resize image for smaller screens
+            width: calc(#{$image-width} / 2);
+          }
+        }
         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
