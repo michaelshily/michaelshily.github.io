@@ -1,0 +1,55 @@
+
+/* CSS Toggle Buttons */
+/* Hide the default checkbox */
+input[type=checkbox] {
+    display: none;
+}
+
+/* Style the container */
+.switch-container {
+    display: flex;
+    align-items: center;
+}
+
+/* Style the text */
+.switch-text {
+    margin-right: 10px;
+    font-size: 36px;
+    color: #555;
+}
+
+/* Style the switch */
+.switch {
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+    position: relative;
+    background-color: #ccc;
+    border-radius: 34px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin: 10px;
+}
+
+/* Style the switch knob */
+.switch::before {
+    content: "";
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    top: 4px;
+    left: 4px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+/* Change the background color of the switch when checked */
+input[type=checkbox]:checked + .switch {
+    background-color: #6f42c1;
+}
+
+/* Move the switch knob to the right when checked */
+input[type=checkbox]:checked + .switch::before {
+    transform: translateX(26px);
+}
