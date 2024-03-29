@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/main.css">
+    <title>Mahjong Selector</title>
+    <link rel="stylesheet" href="scss/main.scss">
+    <link rel="stylesheet" href="scss/overlay.scss">
+    <link rel="stylesheet" href="scss/togglebutton.scss">
+    <link rel="stylesheet" href="scss/radiobutton.scss">
+    <link rel="stylesheet" href="scss/checkbox.scss">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Add your CSS styling here */
+    </style>
+    <script>
+        var auto_increment = 0;
+        var slots = []; //{filename: "XXX", location: "in", tileIndex: 0}
+        var slots_flower = [];
+        var slots_inside = [];
+        var slots_outside = [];
+        var autoSort = true;
+        var InOrOut = 'in';
+        var total_tiles = 17;
+        var tiles_limit = 4;
+        var arrayFlower = ["FB01", "FB02", "FB03", "FB04", "FR01", "FR02", "FR03", "FR04"];
+
+        $(document).ready(function() {
+            //Disable Double-Tap Zoom on Mobile Browser
+            javascript:document.querySelectorAll("*").forEach(e=>{e.style["touch-action"]="manipulation"}),new MutationObserver(e=>{e.forEach(function(e){for(var o=0;o<e.addedNodes.length;o++)e.addedNodes[o].style["touch-action"]="manipulation"})}).observe(document.body,{childList:!0,subtree:!0});
+            
+            init_Variable();
+
+            $("#settingShowButton").click(function() {
+                $("#setting_overlay").fadeIn();
+            });
+            $("#settingCloseButton").click(function() {
+                $("#setting_overlay").fadeOut();
+            });
+            $("#showroomShowButton").click(function() {
+                $("#showroom_overlay").fadeIn();
+                renderShowroom();
+            });
+            $("#showroomCloseButton").click(function() {
+                $("#showroom_overlay").fadeOut();
+            });
+            $("#clearButton").click(function() {
+                slotsClear(); 
+            });
+            $("#inside_area").click(function(){
+                InOrOut = "in";
+                this.classList.add("area_active");
+                $("#outside_area").removeClass("area_active");
+            });
+            $("#outside_area").click(function(){
+                InOrOut = "out";
+                this.classList.add("area_active");
+                $("#inside_area").removeClass("area_active");
+            });
+
+            $("#radioIn").change(function() {
+                InOrOut = 'in';
+                //console.log(InOrOut);
+            });            
+            $("#radioOut").change(function() {
+                InOrOut = 'out';
+                //console.log(InOrOut);
+            });
+        
+            $("#switchAutoSort").change(function(){
+                if (this.checked) {
+                    autoSort = true; // Update variable to true when checkbox is checked
+                } else {
+                autoSort = false; // Update variable to false when checkbox is unchecked
+                }
+            });
+
+            $("#radioTotalTiles14").change(function() {
+                total_tiles = 14;
+            }); 
+            $("#radioTotalTiles17").change(function() {
+                total_tiles = 17;
+            });       
+            
+            $("#switchTileLimit").change(function(){
+                if (this.checked) {
+                    tiles_limit = 4;
+                } else {
+                    tiles_limit = 99;
+                }
+            });
+
+            $(".tiles_container img").click(function() {
+                // Get the source of the clicked image
+                var imageUrl = $(this).attr("src");
+                /*
+                // Limiting Slots Length
+                var slotsExist = slots_inside.length + slots_outside.length;
+                if (slotsExist >= total_tiles) {
+                    //alert("Array length limit reached!");
+                    $("#label_message").html(' Limit reached! Must below ' + total_tiles);
+                    return; // Exit the function if the array length is already 17 or more
+                }
+                */
+                var imageName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1, imageUrl.lastIndexOf("."));
+                slotsAdd(imageName);
+                
+            });
+        });
+
+        function init_Variable(){
+            //autoSort
+            if(autoSort == true){
+                switchAutoSort.checked = true;
+            }else if(autoSort = false){
+                switchAutoSort.checked = false;
+            }
+
+            //InOrOut
+            if(InOrOut == "in"){
+                $("#inside_area").addClass("area_active");
+            }else if(InOrOut == "out"){
+                $("#outside_area").addClass("area_active");
+            }
+
+            //total_tiles
+            if(total_tiles == 14){
+                radioTotalTiles14.checked = true;
+                radioTotalTiles17.checked = false;
+            }else if(total_tiles = 17){
+                radioTotalTiles14.checked = false;
+                radioTotalTiles17.checked = true;
+            }
+            
+
+            //tiles_limit
+            if(tiles_limit == 4){
+                switchTileLimit.checked = true;
+            }else if(tiles_limit > 4){
+                switchTileLimit.checked = false;
+            }
+        }
+
+        function isFlower(para){
+            var index = $.inArray(para, arrayFlower);
+            //console.log(index,slots_flower);
+            if (index !== -1) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        
+        function isFlowerExist(imageName){
+            //var index = $.inArray(imageName, slots_flower);
+            var index = -1;
+            var i = 0;
+            while (i < slots.length) {
+                var filename = slots[i].filename;
+                if(filename == imageName){
+                    index = i;
+                    break;
+                }
+                i++;
+            }
+
+            if (index !== -1) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        function countTiles(imageName){
+            //return countTiles_flower(imageName) + countTiles_Inside(imageName) + countTiles_Outside(imageName);            
+            var count = 0;
+            var i = 0;
+            while (i < slots.length) {
+                var filename = slots[i].filename;
+                if(filename == imageName){
+                    count++;
+                }
+                i++;
+            }
+            return count;
+        }
+
+        function countFourSameOutside(imageName = ""){
+            var count = 0;
+            var i = 0;
+            var tempArray = []; //{filename: "abc", count: 0}
+            while (i < slots.length) {
+                var filename = slots[i].filename;
+                var location = slots[i].location;
+                if( location == 'out' ){                    
+                    var isExist = false;
+                    for (var j = 0; j < tempArray.length; j++) {
+                        if(filename == tempArray[j].filename){
+                            isExist = true;
+                            tempArray[j].count++;
+                            break;
+                        }
+                    }
+                    if(isExist == false){
+                        tempArray.push( {filename: filename, count: 1} );
+                    }
+                }
+                i++;
+            }
+
+            for (var j = 0; j < tempArray.length; j++) {
+                if(imageName == tempArray[j].filename){
+                    tempArray[j].count++;
+                    break;
+                }
+            }
+
+            for (var j = 0; j < tempArray.length; j++) {
+                if(tempArray[j].count == 4){
+                    count++;
+                }
+            }
+            //console.log(tempArray);
+            return count;
+        }
+
+        function slotsAdd(imageName){
+            //Handle if flower
+            if( isFlower(imageName) == true ){
+                //console.log('isFlower');
+                if( isFlowerExist(imageName) == true ){
+                    //console.log('isFlowerExist');
+                    $("#label_message").html(' Flower only can put 1');
+                    return;
+                }
+                slots.push({filename: imageName, location: "flower", tileIndex: auto_increment});
+                auto_increment++;
+                //slots_flower.push(imageName);
+                //slots_flower.sort();
+                slotsRefresh();
+                return;
+            }
+
+            //Handle tiles_limit
+            if(countTiles(imageName) >= tiles_limit){
+                $("#label_message").html(' Tiles only can put ' + tiles_limit);
+                return;
+            }
+
+            //Handle total_tiles
+            countNotFlower = 0;
+            var i = 0;
+            while (i < slots.length) {
+                var filename = slots[i].filename;
+                var location = slots[i].location;
+                if( isFlower(filename) == false ){
+                    countNotFlower++;
+                }
+                i++;
+            }
+            
+            var countFourSame = 0;
+            if(InOrOut === "out"){
+                countFourSame = countFourSameOutside(imageName);
+            }else{
+                countFourSame = countFourSameOutside();
+            }
+            //if (countNotFlower >= total_tiles){
+            console.log(countNotFlower,total_tiles,countFourSame)
+            if (countNotFlower >= (total_tiles + countFourSame)){ 
+                $("#label_message").html(' Total Tiles Over ' + total_tiles);
+                return;
+            }
+
+            //Handle InOrOut
+            switch(InOrOut){
+                case "in":
+                    slots.push({filename: imageName, location: "in", tileIndex: auto_increment});
+                    auto_increment++;
+                    break;
+                case "out":
+                    slots.push({filename: imageName, location: "out", tileIndex: auto_increment});
+                    auto_increment++;
+                    break;
+            }
+
+            //console.log(slots);
+            slotsRefresh();
+            //slots.push({filename: imageName, location: "flower"});
+        }
+        
+        function slotsRefresh(){
+            
+            $("#label_message").html('');
+            $("#slots_flower_container").empty();
+            $("#slots_inside_container").empty();     
+            $("#slots_outside_container").empty();
+            slots_flower = [];
+            slots_inside = [];
+            slots_outside = [];
+
+            //Fill slots_flower, slots_inside, slots_outside
+            var i = 0;
+            while (i < slots.length) {
+                var imageName = slots[i].filename;
+                var location = slots[i].location;
+                var tileIndex = slots[i].tileIndex;
+                var img = $("<img>");
+                imageUrl = 'image/' + imageName + '.png';
+                img.attr("src", imageUrl);
+                img.attr("tileIndex", tileIndex);
+                img.click(slotsImageClickHandler);
+                //img.css("width", "calc(100% / " + slots_inside.length + ")");
+                /*
+                img.click(function() {
+                    var imageUrl = $(this).attr("src");                        
+                    var imageName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1, imageUrl.lastIndexOf("."));
+                    var tileIndex = $(this).attr("tileindex");
+                    //console.log(imageName,tileIndex);
+                    slotsRemove(imageName,tileIndex);
+                });
+                */
+                switch(location){
+                case "flower":
+                    slots_flower.push(imageName);
+                    $("#slots_flower_container").append(img);
+                    break;
+                case "in":
+                    slots_inside.push(imageName);
+                    $("#slots_inside_container").append(img);
+                    break;
+                case "out":
+                    slots_outside.push(imageName);
+                    $("#slots_outside_container").append(img);
+                    break;
+                }
+
+                i++;
+            }
+
+            //return;
+            if(autoSort == true){
+                //slots_flower.sort();
+                //slots_inside.sort();
+                //slots_outside.sort();
+                //console.log(autoSort);
+                sortImageContainerBySrc("slots_flower_container");
+                sortImageContainerBySrc("slots_inside_container");
+                sortImageContainerBySrc("slots_outside_container");
+            }
+
+            var containers = ["slots_inside_container", "slots_outside_container"];
+
+            for (var j = 0; j < containers.length; j++) {
+                var $imageContainer = $("#" + containers[j]);
+                var $images = $imageContainer.find("img");
+                var numImages = $images.length;
+
+                $images.css("width", "calc(100% / " + numImages + ")");
+            }
+        }
+        
+        function sortImageContainerBySrc(imageContainerName){  
+            var $imageContainer = $("#" + imageContainerName);
+            var $images = $imageContainer.find("img"); // Select all the images within the div
+
+            $images.sort(function(a, b) {
+                var srcA = $(a).attr("src");
+                var srcB = $(b).attr("src");
+
+                return srcA.localeCompare(srcB); // Sort based on filename using localeCompare
+            });
+
+            $imageContainer.empty(); // Clear the div
+
+            $images.each(function() {
+                $imageContainer.append(this); // Append the sorted images back to the div
+            });
+            // Reattach click event handlers after sorting
+            $imageContainer.find("img").click(slotsImageClickHandler);
+        }
+        
+        function slotsRemove(imageName,tileIndex){     
+            //console.log(imageName,tileIndex);  
+            var i = 0;
+            while (i < slots.length) {
+                if(slots[i].filename == imageName){
+                    if(slots[i].tileIndex == tileIndex){
+                        slots.splice(i, 1);
+                        //console.log(slots);
+                        break;
+                    }
+                }
+                i++;
+            }
+            slotsRefresh();
+        }
+
+        function slotsClear(){
+            slots = [];
+            slots_flower = [];
+            slots_inside = [];
+            slots_outside = [];
+            slotsRefresh();
+        }
+
+        function slotsImageClickHandler() {
+            var imageUrl = $(this).attr("src");
+            var imageName = imageUrl.substring(
+                imageUrl.lastIndexOf("/") + 1,
+                imageUrl.lastIndexOf(".")
+            );
+            var tileIndex = $(this).attr("tileindex");
+            slotsRemove(imageName, tileIndex);
+        }
+
+        function renderShowroom(){
+            var containers = ["showroom_container"];
+            for (var j = 0; j < containers.length; j++) {
+                var $imageContainer = $("#" + containers[j]);
+                var $images = $imageContainer.find("img");
+                var numImages = $images.length;
+
+                $images.css("width", "calc(100% / " + (numImages + 2) + ")");
+                //console.log(numImages);
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="header">Mahjong Selector</div>
+    <div class="main_grid_container"> 
+        <div class="main_grid_item">
+            <button id="settingShowButton" class="normal_button">Setting</button>
+            <button id="showroomShowButton" class="normal_button">Show Room</button>
+            <button id="clearButton" class="normal_button">Clear</button>
+        </div>
+        <div class="main_grid_item">
+            <div class="display_grid_container">
+                <div class="display_grid_item">
+                    <!--<label>花:</label>-->
+                    <span id="slots_flower_container" class="flower_row_container">Flower</span>
+                </div>
+            </div>
+        </div>
+        <div class="main_grid_item" id="outside_area">
+            <div class="display_grid_container">
+                <span id="slots_outside_container" class="inside_row_container"">Out</span>
+            </div>
+        </div>
+        <div class="main_grid_item" id="inside_area">
+            <div class="display_grid_container">
+                <span id="slots_inside_container" class="inside_row_container"">In</span>
+            </div>
+        </div>
+        <div class="main_grid_item">
+            <label id="label_message" class="main_message"></label>
+        </div>
+        
+        <div class="main_grid_item">
+            <div class="tiles_grid_container">        
+                <div class="tiles_grid_item">
+                    <div class="tiles_container">
+                        <img src="image/A01E.png">
+                        <img src="image/A02S.png">
+                        <img src="image/A03W.png">
+                        <img src="image/A04N.png">
+                        <img src="image/A05M.png">
+                        <img src="image/A06R.png">
+                        <img src="image/A07W.png">
+                    </div>
+                </div>
+            </div>
+            <div class="tiles_grid_container">        
+                <div class="tiles_grid_item">
+                    <div class="tiles_container">
+                        <img src="image/C001.png">
+                        <img src="image/C002.png">
+                        <img src="image/C003.png">
+                        <img src="image/C004.png">
+                        <img src="image/C005.png">
+                        <img src="image/C006.png">
+                        <img src="image/C007.png">
+                        <img src="image/C008.png">
+                        <img src="image/C009.png">
+                    </div>
+                </div>
+            </div>
+            <div class="tiles_grid_container">        
+                <div class="tiles_grid_item">
+                    <div class="tiles_container">
+                        <img src="image/L001.png">
+                        <img src="image/L002.png">
+                        <img src="image/L003.png">
+                        <img src="image/L004.png">
+                        <img src="image/L005.png">
+                        <img src="image/L006.png">
+                        <img src="image/L007.png">
+                        <img src="image/L008.png">
+                        <img src="image/L009.png">
+                    </div>
+                </div>
+            </div>
+            <div class="tiles_grid_container">        
+                <div class="tiles_grid_item">
+                    <div class="tiles_container">
+                        <img src="image/T001.png">
+                        <img src="image/T002.png">
+                        <img src="image/T003.png">
+                        <img src="image/T004.png">
+                        <img src="image/T005.png">
+                        <img src="image/T006.png">
+                        <img src="image/T007.png">
+                        <img src="image/T008.png">
+                        <img src="image/T009.png">
+                    </div>
+                </div>
+            </div>
+            <div class="tiles_grid_container">        
+                <div class="tiles_grid_item">
+                    <div class="tiles_container">
+                        <img src="image/FB01.png">
+                        <img src="image/FB02.png">
+                        <img src="image/FB03.png">
+                        <img src="image/FB04.png">
+                        <img src="image/FR01.png">
+                        <img src="image/FR02.png">
+                        <img src="image/FR03.png">
+                        <img src="image/FR04.png">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main_grid_item">
+            <label class="bottom_message"></label>
+        </div>
+    </div>
+    
+
+    
+    <div id="setting_overlay">
+        <div class="overlay_content">
+            <button id="settingCloseButton" class="close_button">Close</button>
+            <div class="setting_panel">
+                <div class="setting_card">
+                    <div class="setting_container">
+                        <label class="setting_title">AutoSort</label>
+                        <input type="checkbox" id="switchAutoSort" checked>
+                        <label class="switch" for="switchAutoSort"></label>
+                    </div>
+                </div>
+                <div class="setting_card">
+                    <div class="setting_container">
+                        <label class="setting_title">TotalTiles</label>
+                        <label class="radio_container">14
+                            <input type="radio" name="radioTotalTiles" id="radioTotalTiles14">
+                            <span class="radio_checkmark"></span>
+                        </label>
+                        <label class="radio_container">17
+                            <input type="radio" name="radioTotalTiles" id="radioTotalTiles17" checked>
+                            <span class="radio_checkmark"></span>
+                        </label>
+                    </div>
+                </div>
+                <div class="setting_card">
+                    <div class="setting_container">
+                        <label class="setting_title">TileLimit</label>
+                        <input type="checkbox" id="switchTileLimit" checked>
+                        <label class="switch" for="switchTileLimit"></label>
+                    </div>
+                </div>
+                <div class="setting_card">
+                    <div class="setting_container">
+                        <label class="setting_title">Test</label>
+                        <label class="radio_container">1
+                            <input type="radio" name="radioShowRow" checked>
+                            <span class="radio_checkmark"></span>
+                        </label>
+                        <label class="radio_container">2
+                            <input type="radio" name="radioShowRow">
+                            <span class="radio_checkmark"></span>
+                        </label>
+                        <label class="radio_container">3
+                            <input type="radio" name="radioShowRow">
+                            <span class="radio_checkmark"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="showroom_overlay">
+        <div class="overlay_content">
+            <button id="showroomCloseButton" class="close_button">Close</button>
+            <div id="showroom_container" style="background-color: rgb(75, 219, 75);">
+                <img src="image/A01E.png">
+                <img src="image/A01E.png">
+                <img src="image/A01E.png">
+                <img src="image/A02S.png">
+                <img src="image/A02S.png">
+                <img src="image/A02S.png">
+                <img src="image/A03W.png">
+                <img src="image/A03W.png">
+                <img src="image/A03W.png">
+                <img src="image/A04N.png">
+                <img src="image/A04N.png">
+                <img src="image/A04N.png">
+                <img src="image/A06R.png">
+                <img src="image/A06R.png">
+                <img src="image/A06R.png">
+                <img src="image/A05M.png">
+                <img src="image/A05M.png">
+            </div>
+            <div id="showroom_container2" style="background-color: rgb(144, 178, 223);">
+                
+                <div class="tiles_container">
+                    <img src="image/FB01.png">
+                    <img src="image/FB02.png">
+                    <img src="image/FB03.png">
+                    <img src="image/FB04.png">
+                    <img src="image/FR01.png">
+                    <img src="image/FR02.png">
+                    <img src="image/FR03.png">
+                    <img src="image/FR04.png">
+                </div>
+                <div class="tiles_container">
+                    <img src="image/T001.png">
+                    <img src="image/T001.png">
+                    <img src="image/T001.png">
+                    <img src="image/T002.png">
+                    <img src="image/T002.png">
+                    <img src="image/T002.png">
+                    <img src="image/T003.png">
+                    <img src="image/T003.png">
+                    <img src="image/T003.png">
+                </div>
+                <div class="tiles_container">
+                    <img src="image/T001.png">
+                    <img src="image/T002.png">
+                    <img src="image/T003.png">
+                    <img src="image/T004.png">
+                    <img src="image/T005.png">
+                    <img src="image/T006.png">
+                    <img src="image/T008.png">
+                    <img src="image/T008.png">
+                </div>
+
+            </div>      
+        </div>
+    </div>
+</body>
